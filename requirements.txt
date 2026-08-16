@@ -1,8 +1,12 @@
-whisperx
-transformers
-torch
-chatterbox-tts
+torch==2.6.0
+torchvision==0.21.0
+torchaudio==2.6.0
+numpy>=1.26.4,<2.0
+transformers==4.57.1
+whisperx==3.3.1
+chatterbox-tts==0.1.7
+pyannote.audio==3.3.2
+faster-whisper
 pydub
 ffmpeg-python
 soundfile
-faster-whisper
