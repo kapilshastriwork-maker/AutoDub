@@ -65,11 +65,15 @@ def reassemble_track(
     clips_overlaid = 0
     clips_skipped = 0
     warnings_list = []
+    next_available_ms = 0  # tracks where the timeline is actually free
 
-    for i, seg in enumerate(segments):
+    # Process in chronological order so the cursor logic is correct
+    ordered_indices = sorted(range(len(segments)), key=lambda i: segments[i].get("start", 0))
+
+    for i in ordered_indices:
+        seg = segments[i]
         synced_path = seg.get("synced_clip_path")
         start = seg.get("start", 0)
-        end = seg.get("end", 0)
         speaker = seg.get("speaker", f"SPEAKER_{i:02d}")
 
         if not synced_path or not Path(synced_path).exists():
@@ -83,18 +87,24 @@ def reassemble_track(
             clip = AudioSegment.from_file(synced_path)
             clip = clip.set_frame_rate(sample_rate).set_channels(1)
 
-            position_ms = int(start * 1000)
-            clip_end_ms = position_ms + len(clip)
-            base_end_ms = len(base)
+            original_position_ms = int(start * 1000)
+            position_ms = max(original_position_ms, next_available_ms)
 
-            if clip_end_ms > base_end_ms:
-                msg = f"Segment {i} ({speaker}) extends beyond base track ({clip_end_ms}ms > {base_end_ms}ms), will be truncated"
+            if position_ms > original_position_ms:
+                drift_ms = position_ms - original_position_ms
+                msg = f"Segment {i} ({speaker}): pushed forward {drift_ms}ms to avoid overlap (prev clip overran)"
                 warnings_list.append(msg)
                 print(f"[reassemble] Warning: {msg}")
 
+            clip_end_ms = position_ms + len(clip)
+            if clip_end_ms > len(base):
+                # extend base track if this clip needs more room than we planned for
+                base = base + AudioSegment.silent(duration=(clip_end_ms - len(base)), frame_rate=sample_rate)
+
             base = base.overlay(clip, position=position_ms)
+            next_available_ms = clip_end_ms
             clips_overlaid += 1
-            print(f"[reassemble] Overlaid segment {i}: {speaker} @ {start:.2f}s ({len(clip)}ms)")
+            print(f"[reassemble] Overlaid segment {i}: {speaker} @ {position_ms/1000:.2f}s ({len(clip)}ms)")
 
         except Exception as e:
             msg = f"Segment {i} ({speaker}): failed to load/overlay {synced_path}: {e}"
