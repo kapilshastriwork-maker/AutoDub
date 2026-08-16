@@ -1,7 +1,7 @@
 whisperx
 transformers
 torch
-TTS
+coqui-tts
 pydub
 ffmpeg-python
 soundfile
