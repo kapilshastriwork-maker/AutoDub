@@ -48,3 +48,14 @@
   python src/verify.py --output_audio data/output/dubbed.wav --segments_json data/output/tmp/segments.json
   ```
   (Note: main.py doesn't yet save segments JSON — add that if needed for verify step)
+
+## Phase 7: TTS Engine Swap — Chatterbox Multilingual (2026-08-16)
+- **Swapped**: `src/clone_tts.py` — replaced Coqui XTTS-v2 with **Chatterbox Multilingual** (Resemble AI). Updated `requirements.txt`: `coqui-tts` → `chatterbox-tts`. Function signatures unchanged: `clone_voice_tts(text_hi, reference_audio_path, output_path, language="hi")` and `extract_speaker_reference()` untouched.
+- **Why**: (1) **Better Hindi quality** — Chatterbox is newer, trained on more multilingual data including Hindi; (2) **MIT license** — fully permissive for commercial use vs XTTS-v2's CPML (restricts commercial redistribution); (3) **Cleaner API** — `generate(text, audio_prompt_path, language, output_path)` vs XTTS's `tts_to_file`.
+- **API changes**: Chatterbox uses `audio_prompt_path` (not `speaker_wav`), `language="hi"` directly supported. Model loaded once via `ChatterboxTTS.from_pretrained(device=DEVICE)`. CUDA OOM handling pattern preserved.
+- **Gotchas**: Chatterbox model size similar (~1.5GB); VRAM profile comparable. First load downloads weights (~2GB) — ensure disk space. `chatterbox-tts` may pull newer `transformers`/`torch` versions — pin if conflicts arise.
+- **State**: TTS engine swapped; pipeline (Phases 1-5) unchanged and still wired. Ready for test:
+  ```
+  pip install -r requirements.txt
+  python src/main.py --input data/input/test.wav --output data/output/dubbed.wav --hf_token $HF_TOKEN
+  ```

@@ -74,6 +74,12 @@ def main():
         print(f"    -> FAILED: {e}")
         exit(1)
 
+    # Save segments after translation for verification/debugging
+    segments_json = tmp_dir / "segments.json"
+    with open(segments_json, "w", encoding="utf-8") as f:
+        json.dump(segments, f, ensure_ascii=False, indent=2)
+    print(f"    -> Saved segments to {segments_json}")
+
     # Phase 3: Voice cloning (XTTS-v2)
     # Extract reference once per unique speaker
     print("[3/5] Extracting speaker references and generating Hindi TTS (XTTS-v2)...")

@@ -1,7 +1,8 @@
 whisperx
 transformers
 torch
-coqui-tts
+chatterbox-tts
 pydub
 ffmpeg-python
 soundfile
+faster-whisper

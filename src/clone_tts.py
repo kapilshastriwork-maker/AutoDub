@@ -1,12 +1,11 @@
 """
-XTTS-v2 voice cloning logic.
+Chatterbox Multilingual voice cloning logic.
 
-XTTS-v2 model license: Coqui Public Model License (CPML) — free for research/
-non-commercial use. Commercial redistribution requires a separate license from Coqui.
-See: https://github.com/coqui-ai/TTS/blob/main/LICENSE
+Chatterbox Multilingual model license: MIT — free for commercial and non-commercial use.
+See: https://github.com/resemble-ai/chatterbox
 
 Responsibilities:
-- Load XTTS-v2 model from Coqui TTS (once at module level)
+- Load Chatterbox Multilingual model (once at module level)
 - Extract clean reference audio per speaker from original audio + segments
 - Generate Hindi speech in cloned voice using reference audio
 - Save generated clips and return paths
@@ -14,26 +13,28 @@ Responsibilities:
 
 import os
 import argparse
-import tempfile
 import warnings
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 import torch
 from pydub import AudioSegment
-from TTS.api import TTS
+
+try:
+    from chatterbox.tts import ChatterboxTTS
+except ImportError:
+    raise ImportError(
+        "chatterbox-tts not installed. Install with: pip install chatterbox-tts"
+    )
 
 
-warnings.filterwarnings("ignore", category=UserWarning, module="TTS")
-
+warnings.filterwarnings("ignore", category=UserWarning)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"
-SAMPLE_RATE = 22050
+SAMPLE_RATE = 22050  # Chatterbox default sample rate
 
-
-print(f"[clone_tts] Loading XTTS-v2 on {DEVICE}...")
-xtts = TTS(MODEL_NAME).to(DEVICE)
+print(f"[clone_tts] Loading Chatterbox Multilingual on {DEVICE}...")
+chatterbox = ChatterboxTTS.from_pretrained(device=DEVICE)
 print("[clone_tts] Model loaded.")
 
 
@@ -47,7 +48,7 @@ def extract_speaker_reference(
     """
     Given the full original audio and the segment list, finds enough
     continuous/concatenated audio for `speaker_label` to build a clean
-    reference clip of at least `min_duration` seconds (XTTS needs ~6s+
+    reference clip of at least `min_duration` seconds (Chatterbox needs ~6s+
     of clean reference audio per speaker). Saves it as a .wav file in
     output_dir and returns its path.
 
@@ -112,13 +113,13 @@ def clone_voice_tts(
 ) -> str:
     """
     Generates Hindi speech in the reference speaker's cloned voice using
-    XTTS-v2. Saves the result to output_path (.wav) and returns the path.
+    Chatterbox Multilingual. Saves the result to output_path (.wav) and returns the path.
 
     Args:
         text_hi: Hindi text to synthesize.
-        reference_audio_path: Path to reference audio for voice cloning.
+        reference_audio_path: Path to reference audio for voice cloning (audio prompt).
         output_path: Path to save generated audio (.wav).
-        language: Target language code (default: 'hi').
+        language: Target language code (default: 'hi' for Hindi).
 
     Returns:
         Path to generated audio file.
@@ -130,24 +131,26 @@ def clone_voice_tts(
         raise ValueError("text_hi cannot be empty")
 
     try:
-        xtts.tts_to_file(
+        # Chatterbox uses audio_prompt_path for the reference audio
+        # and language for the target language (supports 'hi' for Hindi)
+        chatterbox.generate(
             text=text_hi,
-            speaker_wav=reference_audio_path,
+            audio_prompt_path=reference_audio_path,
             language=language,
-            file_path=output_path
+            output_path=output_path
         )
         print(f"[clone_tts] Generated: {output_path}")
         return output_path
 
     except torch.cuda.OutOfMemoryError as e:
         raise RuntimeError(
-            "CUDA Out of Memory during XTTS generation. "
+            "CUDA Out of Memory during Chatterbox generation. "
             "Try: (1) shorter reference audio (<6s), (2) shorter text, "
             "(3) restart Colab runtime to clear VRAM, (4) use CPU (slow)."
         ) from e
 
     except Exception as e:
-        raise RuntimeError(f"XTTS generation failed: {e}") from e
+        raise RuntimeError(f"Chatterbox generation failed: {e}") from e
 
 
 def generate_for_all_speakers(
@@ -194,7 +197,7 @@ def generate_for_all_speakers(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="XTTS-v2 voice cloning test")
+    parser = argparse.ArgumentParser(description="Chatterbox Multilingual voice cloning test")
     parser.add_argument("--audio", required=True, help="Original source audio file")
     parser.add_argument("--segments_json", required=True, help="JSON with segments from Phase 1+2 (with text_hi)")
     parser.add_argument("--speaker", required=True, help="Speaker label to test (e.g., SPEAKER_00)")
