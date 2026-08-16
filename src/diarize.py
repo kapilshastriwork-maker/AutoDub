@@ -34,6 +34,18 @@ def _patched_torch_load(*args, **kwargs):
     return _original_torch_load(*args, **kwargs)
 torch.load = _patched_torch_load
 
+# pyannote.audio 3.3.2 internally calls hf_hub_download(..., use_auth_token=...),
+# but newer huggingface_hub versions removed that parameter in favor of `token`.
+# Patch it here so it works regardless of which huggingface_hub version is installed.
+import huggingface_hub
+_original_hf_hub_download = huggingface_hub.hf_hub_download
+def _patched_hf_hub_download(*args, **kwargs):
+    if "use_auth_token" in kwargs:
+        kwargs["token"] = kwargs.pop("use_auth_token")
+    return _original_hf_hub_download(*args, **kwargs)
+huggingface_hub.hf_hub_download = _patched_hf_hub_download
+huggingface_hub.file_download.hf_hub_download = _patched_hf_hub_download
+
 import whisperx  # must come after the patch above
 
 MODEL_SIZE = "base"
