@@ -38,3 +38,13 @@
   ```
   python src/main.py --input data/input/test.wav --output data/output/dubbed.wav --hf_token $HF_TOKEN
   ```
+
+## Phase 6: Verification/QA Tool (2026-08-16)
+- **Built**: `src/verify.py` — `verify_output(output_audio_path, segments)` transcribes the final dubbed audio back to Hindi using faster-whisper (base/int8, forced language="hi"), prints full transcript + per-segment side-by-side comparison (intended `text_hi` vs. transcribed). CLI: `--output_audio --segments_json`. Added `faster-whisper` to requirements.txt.
+- **Decisions**: faster-whisper over openai-whisper for speed + lower VRAM; transcribe whole file once (not per-segment) for speed; overlap-based matching for rough alignment; this is a **sanity-check tool only**, not a precision grader — exact alignment isn't critical.
+- **Gotchas**: Requires additional ~150MB VRAM for Whisper model; on 4GB Colab T4, run after pipeline completes (not simultaneously). Transcription quality depends on TTS clarity — heavy speed-clamping in sync phase may reduce intelligibility.
+- **State**: QA tool ready. Usage after full pipeline:
+  ```
+  python src/verify.py --output_audio data/output/dubbed.wav --segments_json data/output/tmp/segments.json
+  ```
+  (Note: main.py doesn't yet save segments JSON — add that if needed for verify step)
