@@ -18,23 +18,25 @@ from pathlib import Path
 from typing import List, Dict
 
 import torch
+import torchaudio as ta
 from pydub import AudioSegment
 
 try:
-    from chatterbox.tts import ChatterboxTTS
+    from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 except ImportError:
     raise ImportError(
-        "chatterbox-tts not installed. Install with: pip install chatterbox-tts"
+        "chatterbox-tts not installed, or multilingual module unavailable. "
+        "Install with: pip install chatterbox-tts"
     )
 
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-SAMPLE_RATE = 22050  # Chatterbox default sample rate
+SAMPLE_RATE = 22050  # sample rate used when preparing reference audio clips
 
 print(f"[clone_tts] Loading Chatterbox Multilingual on {DEVICE}...")
-chatterbox = ChatterboxTTS.from_pretrained(device=DEVICE)
+chatterbox = ChatterboxMultilingualTTS.from_pretrained(device=DEVICE)
 print("[clone_tts] Model loaded.")
 
 
@@ -131,14 +133,19 @@ def clone_voice_tts(
         raise ValueError("text_hi cannot be empty")
 
     try:
-        # Chatterbox uses audio_prompt_path for the reference audio
-        # and language for the target language (supports 'hi' for Hindi)
-        chatterbox.generate(
+        # ChatterboxMultilingualTTS.generate() returns an audio tensor rather
+        # than writing to disk itself — we save it ourselves via torchaudio,
+        # using the model's own sample rate (chatterbox.sr).
+        wav = chatterbox.generate(
             text=text_hi,
             audio_prompt_path=reference_audio_path,
-            language_id=language,
-            output_path=output_path
+            language_id=language
         )
+
+        output_path = str(output_path)
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        ta.save(output_path, wav, chatterbox.sr)
+
         print(f"[clone_tts] Generated: {output_path}")
         return output_path
 
