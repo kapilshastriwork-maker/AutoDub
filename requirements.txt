@@ -1,0 +1,7 @@
+whisperx
+transformers
+torch
+TTS
+pydub
+ffmpeg-python
+soundfile
