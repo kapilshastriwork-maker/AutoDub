@@ -45,25 +45,31 @@ def extract_speaker_reference(
     segments: List[Dict],
     speaker_label: str,
     output_dir: str,
-    min_duration: float = 6.0
+    min_duration: float = 12.0
 ) -> str:
     """
     Given the full original audio and the segment list, finds enough
     continuous/concatenated audio for `speaker_label` to build a clean
-    reference clip of at least `min_duration` seconds (Chatterbox needs ~6s+
-    of clean reference audio per speaker). Saves it as a .wav file in
-    output_dir and returns its path.
+    reference clip of at least `min_duration` seconds (Chatterbox recommends
+    12s+ of clean reference audio per speaker for best cloning fidelity).
+    Saves it as a .wav file in output_dir and returns its path.
 
-    If a single segment for that speaker is long enough, just trim it.
-    If not, concatenate multiple segments from that speaker (with a short
-    silence between them) until min_duration is met.
+    Strategy:
+    1. First check if any SINGLE segment for this speaker is already >=
+       min_duration on its own — if so, use just that one segment directly
+       (trimmed to min_duration), since one continuous clean clip clones
+       better than several stitched-together fragments.
+    2. Only fall back to concatenating multiple segments if no single segment
+       is long enough. When concatenating, sort the speaker's segments by
+       duration (longest first) before combining, so we use the fewest,
+       longest fragments possible.
 
     Args:
         audio_path: Path to original full audio file.
         segments: List of segment dicts with 'speaker', 'start', 'end'.
         speaker_label: Speaker label to extract (e.g., "SPEAKER_00").
         output_dir: Directory to save the reference clip.
-        min_duration: Minimum reference duration in seconds (default: 6.0).
+        min_duration: Minimum reference duration in seconds (default: 12.0).
 
     Returns:
         Path to the extracted reference .wav file.
@@ -81,9 +87,26 @@ def extract_speaker_reference(
     full_audio = AudioSegment.from_file(audio_path)
     full_audio = full_audio.set_frame_rate(SAMPLE_RATE).set_channels(1)
 
+    # 1. Check if any single segment meets min_duration
+    for seg in speaker_segments:
+        seg_duration = seg["end"] - seg["start"]
+        if seg_duration >= min_duration:
+            # Use this single continuous segment (trimmed to min_duration)
+            start_ms = int(seg["start"] * 1000)
+            end_ms = int((seg["start"] + min_duration) * 1000)
+            clip = full_audio[start_ms:end_ms]
+            output_path = output_dir / f"ref_{speaker_label}.wav"
+            clip.export(str(output_path), format="wav")
+            print(f"[clone_tts] Extracted reference for {speaker_label} (single segment, {min_duration:.1f}s): {output_path}")
+            return str(output_path)
+
+    # 2. Fall back: concatenate multiple segments, longest first
+    # Sort by duration descending (longest first)
+    speaker_segments.sort(key=lambda s: s["end"] - s["start"], reverse=True)
+
     total_duration = 0.0
     combined = AudioSegment.silent(duration=0, frame_rate=SAMPLE_RATE)
-    silence_gap = AudioSegment.silent(duration=200, frame_rate=SAMPLE_RATE)  # 200ms
+    silence_gap = AudioSegment.silent(duration=100, frame_rate=SAMPLE_RATE)  # 100ms
 
     for seg in speaker_segments:
         start_ms = int(seg["start"] * 1000)
@@ -103,7 +126,7 @@ def extract_speaker_reference(
 
     output_path = output_dir / f"ref_{speaker_label}.wav"
     combined.export(str(output_path), format="wav")
-    print(f"[clone_tts] Extracted reference for {speaker_label}: {output_path} ({total_duration:.1f}s)")
+    print(f"[clone_tts] Extracted reference for {speaker_label} (concatenated, {total_duration:.1f}s): {output_path}")
     return str(output_path)
 
 
