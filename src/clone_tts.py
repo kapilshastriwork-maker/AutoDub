@@ -136,7 +136,7 @@ def clone_voice_tts(
         chatterbox.generate(
             text=text_hi,
             audio_prompt_path=reference_audio_path,
-            language=language,
+            language_id=language,
             output_path=output_path
         )
         print(f"[clone_tts] Generated: {output_path}")
