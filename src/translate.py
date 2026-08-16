@@ -39,7 +39,7 @@ def translate_text(text: str, model, tokenizer) -> str:
     with torch.no_grad():
         generated_tokens = model.generate(
             **inputs,
-            forced_bos_token_id=tokenizer.lang_code_to_id[TGT_LANG],
+            forced_bos_token_id=tokenizer.convert_tokens_to_ids(TGT_LANG),
             max_length=512
         )
     translated = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
