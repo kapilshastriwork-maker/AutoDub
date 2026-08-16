@@ -17,6 +17,20 @@ import argparse
 from pathlib import Path
 from typing import List, Dict
 
+import torch
+
+# PyTorch 2.6+ changed torch.load's default to weights_only=True, which breaks
+# WhisperX's internal VAD model loading (it loads a checkpoint containing
+# omegaconf.ListConfig objects). We trust WhisperX's official model source,
+# so we restore the old default behavior globally before whisperx is imported.
+_original_torch_load = torch.load
+def _patched_torch_load(*args, **kwargs):
+    kwargs.setdefault("weights_only", False)
+    return _original_torch_load(*args, **kwargs)
+torch.load = _patched_torch_load
+
+import whisperx  # must come after the patch above
+
 import whisperx
 
 
