@@ -75,7 +75,8 @@ def diarize_and_transcribe(audio_path: str, hf_token: str) -> List[Dict]:
     del model_a
 
     print("[diarize] Running speaker diarization (pyannote)...")
-    diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=DEVICE)
+    from whisperx.diarize import DiarizationPipeline
+    diarize_model = DiarizationPipeline(token=hf_token, device=device)
     diarize_segments = diarize_model(audio)
 
     print("[diarize] Assigning speakers to segments...")
